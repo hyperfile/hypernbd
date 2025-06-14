@@ -1,0 +1,10 @@
+[package]
+name = "hypernbd"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nbdkit = "0.3.0"
+
+[lib]
+crate-type = ["cdylib"]
