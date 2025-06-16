@@ -83,4 +83,13 @@ impl<'a: 'static> HyperNbd<'a> {
         });
         res.map(|_write_size| ())
     }
+
+    pub(crate) fn do_flush(&self) -> Result<()> {
+        let file = self.file.clone();
+        let res = self.rt.handle().block_on(async {
+            let mut lock = file.write().await;
+            lock.flush().await
+        });
+        res
+    }
 }

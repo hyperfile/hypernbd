@@ -46,6 +46,10 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         Ok(true)
     }
 
+    fn can_flush(&self) -> Result<bool> {
+        Ok(true)
+    }
+
     fn load() {
         env_logger::init();
         debug!("load -");
@@ -80,6 +84,11 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         Ok(())
     }
 
+    fn flush(&self) -> Result<()> {
+        debug!("flush -");
+        Ok(self.do_flush()?)
+    }
+
     fn write_at(&self, buf: &[u8], offset: u64, flags: Flags) -> Result<()> {
         debug!("write_at - offset: {}, len: {}, flags: {}", offset, buf.len(), flags.bits());
         Ok(self.write(offset, buf)?)
@@ -91,4 +100,4 @@ impl<'a: 'static> Server for HyperNbd<'a> {
     }
 }
 
-plugin!(HyperNbd {is_rotational, can_zero, load, unload, dump_plugin, config, config_complete, write_at, zero});
+plugin!(HyperNbd {is_rotational, can_zero, can_flush, load, unload, dump_plugin, config, config_complete, flush, write_at, zero});
