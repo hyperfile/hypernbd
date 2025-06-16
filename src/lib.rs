@@ -54,6 +54,10 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         Ok(true)
     }
 
+    fn can_extents(&self) -> Result<bool> {
+        Ok(true)
+    }
+
     fn load() {
         env_logger::init();
         debug!("load -");
@@ -107,10 +111,17 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         debug!("zero - offset: {}, count: {}, flags: {}", offset, count, flags.bits());
         Ok(self.write_zero(offset, count)?)
     }
+
+    fn extents(&self, count: u32, offset: u64, flags: Flags, extent_handle: &mut ExtentHandle) -> Result<()> {
+        debug!("extents - offset: {}, count: {}, flags: {}", offset, count, flags.bits());
+        // FIXME: mark all as allocated for now
+        let _ = extent_handle.add(offset, count as u64, ExtentType::Allocated);
+        Ok(())
+    }
 }
 
 plugin!(HyperNbd {
-    is_rotational, can_zero, can_flush, can_trim,
+    is_rotational, can_zero, can_flush, can_trim, can_extents,
     load, unload, dump_plugin, config, config_complete,
-    flush, trim, write_at, zero
+    flush, trim, write_at, zero, extents
 });
