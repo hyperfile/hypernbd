@@ -5,6 +5,13 @@ edition = "2024"
 
 [dependencies]
 nbdkit = "0.3.0"
+log = "0.4.27"
+env_logger = "0.11.8"
+libc = "0.2.173"
+tokio = { version = "1", features = ["full"] }
+aws-config = { version = "1.5.17", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.77.0"
+hyperfile = { path = "../hyperfile-staging", version = "0.1.0" }
 
 [lib]
 crate-type = ["cdylib"]
