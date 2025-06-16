@@ -100,4 +100,8 @@ impl<'a: 'static> Server for HyperNbd<'a> {
     }
 }
 
-plugin!(HyperNbd {is_rotational, can_zero, can_flush, load, unload, dump_plugin, config, config_complete, flush, write_at, zero});
+plugin!(HyperNbd {
+    is_rotational, can_zero, can_flush,
+    load, unload, dump_plugin, config, config_complete,
+    flush, write_at, zero
+});
