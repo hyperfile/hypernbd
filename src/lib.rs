@@ -1,4 +1,5 @@
 use std::sync::OnceLock;
+use std::sync::LazyLock;
 use nbdkit::*;
 use log::debug;
 
@@ -7,6 +8,9 @@ mod hyper;
 use hyper::HyperNbd;
 
 static BACKEND_URI: OnceLock<String> = OnceLock::new();
+static VERSION: LazyLock<String> = LazyLock::new(|| {
+    format!("{}:{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+});
 
 impl<'a: 'static> Server for HyperNbd<'a> {
     // required
@@ -38,6 +42,10 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         Ok(false)
     }
 
+    fn can_zero(&self) -> Result<bool> {
+        Ok(true)
+    }
+
     fn load() {
         env_logger::init();
         debug!("load -");
@@ -45,6 +53,10 @@ impl<'a: 'static> Server for HyperNbd<'a> {
 
     fn unload() {
         debug!("unload -");
+    }
+
+    fn version() -> Option<&'static str> {
+        Some(&LazyLock::force(&VERSION))
     }
 
     fn dump_plugin() {
@@ -72,6 +84,11 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         debug!("write_at - offset: {}, len: {}, flags: {}", offset, buf.len(), flags.bits());
         Ok(self.write(offset, buf)?)
     }
+
+    fn zero(&self, count: u32, offset: u64, flags: Flags) -> Result<()> {
+        debug!("zero - offset: {}, count: {}, flags: {}", offset, count, flags.bits());
+        Ok(self.write_zero(offset, count)?)
+    }
 }
 
-plugin!(HyperNbd {is_rotational, load, unload, dump_plugin, config, config_complete, write_at});
+plugin!(HyperNbd {is_rotational, can_zero, load, unload, dump_plugin, config, config_complete, write_at, zero});

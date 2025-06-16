@@ -73,4 +73,14 @@ impl<'a: 'static> HyperNbd<'a> {
         });
         res.map(|_write_size| ())
     }
+
+    pub(crate) fn write_zero(&self, offset: u64, count: u32) -> Result<()> {
+        let file = self.file.clone();
+        let res = self.rt.handle().block_on(async {
+            let mut lock = file.write().await;
+            let _ = lock.seek(SeekFrom::Start(offset)).await?;
+            lock.write_zero(count as usize).await
+        });
+        res.map(|_write_size| ())
+    }
 }
