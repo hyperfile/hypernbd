@@ -50,6 +50,10 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         Ok(true)
     }
 
+    fn can_trim(&self) -> Result<bool> {
+        Ok(true)
+    }
+
     fn load() {
         env_logger::init();
         debug!("load -");
@@ -89,6 +93,11 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         Ok(self.do_flush()?)
     }
 
+    fn trim(&self, count: u32, offset: u64, flags: Flags) -> Result<()> {
+        debug!("trim - offset: {}, count: {}, flags: {}", offset, count, flags.bits());
+        Ok(self.write_zero(offset, count)?)
+    }
+
     fn write_at(&self, buf: &[u8], offset: u64, flags: Flags) -> Result<()> {
         debug!("write_at - offset: {}, len: {}, flags: {}", offset, buf.len(), flags.bits());
         Ok(self.write(offset, buf)?)
@@ -101,7 +110,7 @@ impl<'a: 'static> Server for HyperNbd<'a> {
 }
 
 plugin!(HyperNbd {
-    is_rotational, can_zero, can_flush,
+    is_rotational, can_zero, can_flush, can_trim,
     load, unload, dump_plugin, config, config_complete,
-    flush, write_at, zero
+    flush, trim, write_at, zero
 });
