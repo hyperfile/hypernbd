@@ -1,6 +1,7 @@
-use std::io::Result;
+use std::io::{Result, Error, ErrorKind};
 use std::io::SeekFrom;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use log::debug;
 use tokio::sync::RwLock;
 use tokio::io::{AsyncSeekExt, AsyncReadExt, AsyncWriteExt};
@@ -10,9 +11,12 @@ use hyperfile::file::tokio_wrapper::HyperFileTokio;
 use hyperfile::file::flags::FileFlags;
 use hyperfile::file::mode::FileMode;
 
+pub(crate) static BACKEND_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
+pub(crate) static BACKEND_HYPER: OnceLock<Arc<RwLock<HyperFileTokio<'_>>>> = OnceLock::new();
+
 pub(crate) struct HyperNbd<'a> {
     uri: String,
-    rt: Runtime,
+    rt: Arc<Runtime>,
     client: Client,
     file: Arc<RwLock<HyperFileTokio<'a>>>,
 }
@@ -38,12 +42,65 @@ impl<'a: 'static> HyperNbd<'a> {
             (HyperFileTokio::open_or_create_with_default_opt(&client, uri, flags, mode).await, client)
         });
 
+        // save runtime handle into global var
+        let rt = Arc::new(rt);
+        let res = BACKEND_RUNTIME.set(rt.clone());
+        if res.is_err() {
+            return Err(Error::new(ErrorKind::ResourceBusy, "failed to set backend runtime"));
+        }
+
+        // save opened file into global var
+        let file = Arc::new(RwLock::new(file?));
+        let res = BACKEND_HYPER.set(file.clone());
+        if res.is_err() {
+            return Err(Error::new(ErrorKind::ResourceBusy, "failed to set backend hyper"));
+        }
+
         Ok(Self {
             uri: uri.to_owned(),
             rt,
             client,
-            file: Arc::new(RwLock::new(file?)),
+            file,
         })
+    }
+
+    pub(crate) fn shutdown_runtime() {
+        // shutdown runtime
+        if let Some(arc_rt) = BACKEND_RUNTIME.get() {
+            // ugly clean up runtime reference by unsafe code
+            let arc_rt_clone = arc_rt.clone();
+            let mut strong_count = Arc::strong_count(&arc_rt_clone);
+            let raw = Arc::into_raw(arc_rt_clone.clone());
+            while strong_count > 0 {
+                unsafe {
+                    Arc::decrement_strong_count(raw);
+                }
+                strong_count -= 1;
+            }
+            let arc_rt = unsafe { Arc::from_raw(raw) };
+            if let Some(rt) = Arc::into_inner(arc_rt) {
+                rt.shutdown_background();
+                debug!("runtime shutdown completed");
+            }
+        }
+    }
+
+    pub(crate) fn shutdown() {
+        // get back runtime and hyper
+        let Some(rt) = BACKEND_RUNTIME.get() else {
+            debug!("backend runtime is uninitialized");
+            return;
+        };
+        let Some(hyper) = BACKEND_HYPER.get() else {
+            debug!("backend hyper is uninitialized");
+            Self::shutdown_runtime();
+            return;
+        };
+        let _ = rt.handle().block_on(async {
+            hyper.write().await.shutdown().await
+        });
+        debug!("hyper shutdown completed");
+        Self::shutdown_runtime();
     }
 
     pub(crate) fn get_volume_size(&self) -> Result<i64> {

@@ -73,6 +73,7 @@ impl<'a: 'static> Server for HyperNbd<'a> {
 
     fn unload() {
         debug!("unload -");
+        HyperNbd::shutdown();
     }
 
     fn version() -> Option<&'static str> {
