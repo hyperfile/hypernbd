@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 use std::sync::LazyLock;
 use nbdkit::*;
+use nix::sys::socket::SockaddrStorage;
 use log::debug;
 
 mod hyper;
@@ -56,6 +57,13 @@ impl<'a: 'static> Server for HyperNbd<'a> {
 
     fn can_extents(&self) -> Result<bool> {
         Ok(true)
+    }
+
+    fn preconnect(readonly: bool) -> Result<()> {
+        debug!("preconnecton - readonly {}", readonly);
+        let peer: SockaddrStorage = nbdkit::peername().expect("failed to get peername");
+        debug!("             - peer {}", peer);
+        Ok(())
     }
 
     fn load() {
@@ -122,6 +130,6 @@ impl<'a: 'static> Server for HyperNbd<'a> {
 
 plugin!(HyperNbd {
     is_rotational, can_zero, can_flush, can_trim, can_extents,
-    load, unload, dump_plugin, config, config_complete,
+    preconnect, load, unload, dump_plugin, config, config_complete,
     flush, trim, write_at, zero, extents
 });
