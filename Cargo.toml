@@ -16,3 +16,8 @@ hyperfile = { path = "../hyperfile-staging", version = "0.1.0", features = ["wal
 
 [lib]
 crate-type = ["cdylib"]
+
+[features]
+tokio-style = []
+handler-style = []
+default = ["tokio-style"]
