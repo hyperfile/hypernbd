@@ -10,6 +10,10 @@ use aws_sdk_s3::Client;
 use hyperfile::file::tokio_wrapper::HyperFileTokio;
 use hyperfile::file::flags::FileFlags;
 use hyperfile::file::mode::FileMode;
+use hyperfile::config::HyperFileConfigBuilder;
+use hyperfile::staging::config::StagingConfig;
+use hyperfile::wal::config::HyperFileWalConfig;
+use hyperfile::config::{HyperFileMetaConfig, HyperFileRuntimeConfig};
 
 pub(crate) static BACKEND_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
 pub(crate) static BACKEND_HYPER: OnceLock<Arc<RwLock<HyperFileTokio<'_>>>> = OnceLock::new();
@@ -22,7 +26,7 @@ pub(crate) struct HyperNbd<'a> {
 }
 
 impl<'a: 'static> HyperNbd<'a> {
-    pub(crate) fn open(uri: &str, readonly: bool) -> Result<Self> {
+    pub(crate) fn open(uri: &str, wal_uri: &str, readonly: bool) -> Result<Self> {
         debug!("open back device: {}", uri);
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -39,7 +43,18 @@ impl<'a: 'static> HyperNbd<'a> {
                 FileFlags::rdwr()
             };
             let mode = FileMode::default_file();
-            (HyperFileTokio::open_or_create_with_default_opt(&client, uri, flags, mode).await, client)
+
+            let meta_config = HyperFileMetaConfig::default();
+            let staging_config = StagingConfig::new_s3_uri(uri, None);
+            let runtime_config = HyperFileRuntimeConfig::default_large();
+            let wal_config = HyperFileWalConfig::new(wal_uri);
+            let file_config = HyperFileConfigBuilder::new()
+                                .with_meta_config(&meta_config)
+                                .with_staging_config(&staging_config)
+                                .with_runtime_config(&runtime_config)
+                                .with_wal_config(&wal_config)
+                                .build();
+            (HyperFileTokio::open_or_create_with_config(&client, file_config, flags, mode).await, client)
         });
 
         // save runtime handle into global var

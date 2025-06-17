@@ -9,6 +9,7 @@ mod hyper;
 use hyper::HyperNbd;
 
 static BACKEND_URI: OnceLock<String> = OnceLock::new();
+static BACKEND_WAL_URI: OnceLock<String> = OnceLock::new();
 static VERSION: LazyLock<String> = LazyLock::new(|| {
     format!("{}:{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
 });
@@ -29,7 +30,10 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         let Some(uri) = BACKEND_URI.get() else {
             return Err(Error::new(libc::EINVAL, "failed to get backend uri"));
         };
-        Ok(Box::new(HyperNbd::open(uri, readonly)?))
+        let Some(wal_uri) = BACKEND_WAL_URI.get() else {
+            return Err(Error::new(libc::EINVAL, "failed to get backend wal uri"));
+        };
+        Ok(Box::new(HyperNbd::open(uri, wal_uri, readonly)?))
     }
 
     fn read_at(&self, buf: &mut [u8], offset: u64) -> Result<()> {
@@ -57,6 +61,18 @@ impl<'a: 'static> Server for HyperNbd<'a> {
 
     fn can_extents(&self) -> Result<bool> {
         Ok(true)
+    }
+
+    fn can_cache(&self) -> Result<CacheFlags> {
+        Ok(CacheFlags::None)
+    }
+
+    fn can_fua(&self) -> Result<FuaFlags> {
+        Ok(FuaFlags::None)
+    }
+
+    fn can_multi_conn(&self) -> Result<bool> {
+        Ok(false)
     }
 
     fn preconnect(readonly: bool) -> Result<()> {
@@ -91,6 +107,13 @@ impl<'a: 'static> Server for HyperNbd<'a> {
             let res = BACKEND_URI.set(value.to_string());
             if res.is_err() {
                 return Err(Error::new(libc::EINVAL, "failed to set backend uri from command line input"));
+            }
+        }
+        if key == "backend_wal_uri" {
+            // TODO: validate uri
+            let res = BACKEND_WAL_URI.set(value.to_string());
+            if res.is_err() {
+                return Err(Error::new(libc::EINVAL, "failed to set backend wal uri from command line input"));
             }
         }
         Ok(())
@@ -130,7 +153,7 @@ impl<'a: 'static> Server for HyperNbd<'a> {
 }
 
 plugin!(HyperNbd {
-    is_rotational, can_zero, can_flush, can_trim, can_extents,
+    is_rotational, can_zero, can_flush, can_trim, can_extents, can_cache, can_fua, can_multi_conn,
     preconnect, load, unload, dump_plugin, config, config_complete,
     flush, trim, write_at, zero, extents
 });
