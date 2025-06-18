@@ -4,10 +4,15 @@ use nbdkit::*;
 use nix::sys::socket::SockaddrStorage;
 use log::debug;
 
+#[cfg(feature="tokio-style")]
 mod hyper_tokio;
+#[cfg(feature="handler-style")]
+mod hyper_handler;
 
 #[cfg(feature="tokio-style")]
 use hyper_tokio::HyperNbd;
+#[cfg(feature="handler-style")]
+use hyper_handler::HyperNbd;
 
 static BACKEND_URI: OnceLock<String> = OnceLock::new();
 static BACKEND_WAL_URI: OnceLock<String> = OnceLock::new();
