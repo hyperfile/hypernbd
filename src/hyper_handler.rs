@@ -146,7 +146,7 @@ impl<'a: 'static> HyperNbd<'a> {
 
     pub(crate) fn read(&self, offset: u64, buf: &mut [u8]) -> Result<()> {
         let b = unsafe { std::slice::from_raw_parts_mut(buf.as_ptr() as *mut u8, buf.len()) };
-        let (ctx, tx, mut rx) = FileContext::new_read(b, offset as usize);
+        let (ctx, tx, mut rx) = FileContext::new_read(b, offset as usize, self.handler.clone());
         self.handler.send(ctx);
         let res = self.rt.handle().block_on(async {
             rx.recv().await.expect("task channel closed")
