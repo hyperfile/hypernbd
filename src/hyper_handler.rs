@@ -177,7 +177,7 @@ impl<'a: 'static> HyperNbd<'a> {
     }
 
     pub(crate) fn do_flush(&self) -> Result<()> {
-        let (ctx, rx) = FileContext::new_flush();
+        let (ctx, rx) = FileContext::new_flush(self.handler.clone());
         self.handler.send(ctx);
         let res = self.rt.handle().block_on(async {
             rx.await.expect("task channel closed")
