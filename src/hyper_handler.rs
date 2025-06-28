@@ -127,7 +127,7 @@ impl<'a: 'static> HyperNbd<'a> {
         };
         let _ = rt.handle().block_on(async {
             // do release
-            let (ctx, rx) = FileContext::new_release();
+            let (ctx, rx) = FileContext::new_release(handler.clone());
             handler.send(ctx);
             rx.await.expect("task channel closed")
         });
