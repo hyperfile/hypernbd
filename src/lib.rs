@@ -58,7 +58,7 @@ impl<'a: 'static> Server for HyperNbd<'a> {
     }
 
     fn can_flush(&self) -> Result<bool> {
-        Ok(true)
+        Ok(false)
     }
 
     fn can_trim(&self) -> Result<bool> {
