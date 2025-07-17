@@ -36,8 +36,13 @@ impl<'a: 'static> Server for HyperNbd<'a> {
         let Some(uri) = BACKEND_URI.get() else {
             return Err(Error::new(libc::EINVAL, "failed to get backend uri"));
         };
-        let Some(wal_uri) = BACKEND_WAL_URI.get() else {
-            return Err(Error::new(libc::EINVAL, "failed to get backend wal uri"));
+        let wal_uri = match BACKEND_WAL_URI.get() {
+            Some(wal_uri) => {
+                wal_uri
+            },
+            None => {
+                ""
+            },
         };
         Ok(Box::new(HyperNbd::open(uri, wal_uri, readonly)?))
     }
@@ -58,7 +63,10 @@ impl<'a: 'static> Server for HyperNbd<'a> {
     }
 
     fn can_flush(&self) -> Result<bool> {
-        Ok(false)
+        if BACKEND_WAL_URI.get().is_some() {
+            return Ok(false);
+        }
+        Ok(true)
     }
 
     fn can_trim(&self) -> Result<bool> {
