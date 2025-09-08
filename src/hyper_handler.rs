@@ -13,6 +13,7 @@ use hyperfile::file::mode::FileMode;
 use hyperfile::config::HyperFileConfigBuilder;
 use hyperfile::staging::config::StagingConfig;
 use hyperfile::wal::config::HyperFileWalConfig;
+use hyperfile::cache::config::HyperFileCacheConfig;
 use hyperfile::config::{HyperFileMetaConfig, HyperFileRuntimeConfig};
 
 pub(crate) static BACKEND_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
@@ -49,11 +50,13 @@ impl<'a: 'static> HyperNbd<'a> {
             let staging_config = StagingConfig::new_s3_uri(uri, None);
             let runtime_config = HyperFileRuntimeConfig::default_large();
             let wal_config = HyperFileWalConfig::new(wal_uri);
+            let cache_config = HyperFileCacheConfig::new_local_disk_default();
             let file_config = HyperFileConfigBuilder::new()
                                 .with_meta_config(&meta_config)
                                 .with_staging_config(&staging_config)
                                 .with_runtime_config(&runtime_config)
                                 .with_wal_config(&wal_config)
+                                .with_cache_config(&cache_config)
                                 .build();
             let spawner = LocalSpawner::new_current();
             let (tx, rx) = oneshot::channel();
