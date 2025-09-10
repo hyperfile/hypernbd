@@ -1,7 +1,6 @@
 use std::io::{Result, Error, ErrorKind};
 use std::io::SeekFrom;
-use std::sync::Arc;
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex, OnceLock};
 use log::debug;
 use tokio::sync::RwLock;
 use tokio::io::{AsyncSeekExt, AsyncReadExt, AsyncWriteExt};
@@ -13,11 +12,11 @@ use hyperfile::file::mode::FileMode;
 use hyperfile::config::HyperFileConfigBuilder;
 use hyperfile::staging::config::StagingConfig;
 use hyperfile::wal::config::HyperFileWalConfig;
-use hyperfile::cache::config::HyperFileCacheConfig
+use hyperfile::cache::config::HyperFileCacheConfig;
 use hyperfile::config::{HyperFileMetaConfig, HyperFileRuntimeConfig};
 
 pub(crate) static BACKEND_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
-pub(crate) static BACKEND_HYPER: OnceLock<Arc<RwLock<HyperFileTokio<'_>>>> = OnceLock::new();
+pub(crate) static BACKEND_HYPER: OnceLock<Mutex<Option<Arc<RwLock<HyperFileTokio<'_>>>>>> = OnceLock::new();
 
 pub(crate) struct HyperNbd<'a> {
     uri: String,
@@ -69,7 +68,7 @@ impl<'a: 'static> HyperNbd<'a> {
 
         // save opened file into global var
         let file = Arc::new(RwLock::new(file?));
-        let res = BACKEND_HYPER.set(file.clone());
+        let res = BACKEND_HYPER.set(Mutex::new(Some(file.clone())));
         if res.is_err() {
             return Err(Error::new(ErrorKind::ResourceBusy, "failed to set backend hyper"));
         }
@@ -109,14 +108,19 @@ impl<'a: 'static> HyperNbd<'a> {
             debug!("backend runtime is uninitialized");
             return;
         };
-        let Some(hyper) = BACKEND_HYPER.get() else {
+        let Some(lock) = BACKEND_HYPER.get() else {
             debug!("backend hyper is uninitialized");
             Self::shutdown_runtime();
             return;
         };
+        let hyper = lock.lock().expect("BACKEND_HYPER is posioned").clone().unwrap();
         let _ = rt.handle().block_on(async {
             hyper.write().await.shutdown().await
         });
+        let Some(hyper) = lock.lock().expect("BACKEND_HYPER is posioned").take() else {
+            panic!("backend hyper is uninitialized");
+        };
+        drop(hyper);
         debug!("hyper shutdown completed");
         Self::shutdown_runtime();
     }
