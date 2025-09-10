@@ -1,6 +1,5 @@
 use std::io::{Result, Error, ErrorKind};
-use std::sync::Arc;
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex, OnceLock};
 use log::debug;
 use tokio::sync::oneshot;
 use tokio::runtime::Runtime;
@@ -17,7 +16,7 @@ use hyperfile::cache::config::HyperFileCacheConfig;
 use hyperfile::config::{HyperFileMetaConfig, HyperFileRuntimeConfig};
 
 pub(crate) static BACKEND_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
-pub(crate) static BACKEND_HYPER: OnceLock<TaskHandler<FileContext<'_>>> = OnceLock::new();
+pub(crate) static BACKEND_HYPER: OnceLock<Mutex<Option<TaskHandler<FileContext<'_>>>>> = OnceLock::new();
 
 pub(crate) struct HyperNbd<'a> {
     uri: String,
@@ -82,7 +81,7 @@ impl<'a: 'static> HyperNbd<'a> {
         }
 
         // save handler into global var
-        let res = BACKEND_HYPER.set(handler.clone());
+        let res = BACKEND_HYPER.set(Mutex::new(Some(handler.clone())));
         if res.is_err() {
             return Err(Error::new(ErrorKind::ResourceBusy, "failed to set backend hyper"));
         }
@@ -123,17 +122,22 @@ impl<'a: 'static> HyperNbd<'a> {
             debug!("backend runtime is uninitialized");
             return;
         };
-        let Some(handler) = BACKEND_HYPER.get() else {
+        let Some(lock) = BACKEND_HYPER.get() else {
             debug!("backend hyper is uninitialized");
             Self::shutdown_runtime();
             return;
         };
+        let handler = lock.lock().expect("BACKEND_HYPER is posioned").clone().unwrap();
         let _ = rt.handle().block_on(async {
             // do release
             let (ctx, rx) = FileContext::new_release(handler.clone());
             handler.send(ctx);
             rx.await.expect("task channel closed")
         });
+        let Some(handler) = lock.lock().expect("BACKEND_HYPER is posioned").take() else {
+            panic!("backend hyper is uninitialized");
+        };
+        drop(handler);
         debug!("handler shutdown completed");
         Self::shutdown_runtime();
     }
