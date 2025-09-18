@@ -16,6 +16,7 @@ use hyper_handler::HyperNbd;
 
 static BACKEND_URI: OnceLock<String> = OnceLock::new();
 static BACKEND_WAL_URI: OnceLock<String> = OnceLock::new();
+static NODE_CACHE_CONFIG: OnceLock<String> = OnceLock::new();
 static VERSION: LazyLock<String> = LazyLock::new(|| {
     format!("{}:{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
 });
@@ -44,7 +45,15 @@ impl<'a: 'static> Server for HyperNbd<'a> {
                 ""
             },
         };
-        Ok(Box::new(HyperNbd::open(uri, wal_uri, readonly)?))
+        let node_cache = match NODE_CACHE_CONFIG.get() {
+            Some(node_cache) => {
+                node_cache
+            },
+            None => {
+                ""
+            },
+        };
+        Ok(Box::new(HyperNbd::open(uri, wal_uri, node_cache, readonly)?))
     }
 
     fn read_at(&self, buf: &mut [u8], offset: u64) -> Result<()> {
@@ -128,6 +137,12 @@ impl<'a: 'static> Server for HyperNbd<'a> {
             let res = BACKEND_WAL_URI.set(value.to_string());
             if res.is_err() {
                 return Err(Error::new(libc::EINVAL, "failed to set backend wal uri from command line input"));
+            }
+        }
+        if key == "node_cache_config" {
+            let res = NODE_CACHE_CONFIG.set(value.to_string());
+            if res.is_err() {
+                return Err(Error::new(libc::EINVAL, "failed to set node cache config string from command line input"));
             }
         }
         Ok(())

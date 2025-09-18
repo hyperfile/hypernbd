@@ -12,7 +12,8 @@ use hyperfile::file::mode::FileMode;
 use hyperfile::config::HyperFileConfigBuilder;
 use hyperfile::staging::config::StagingConfig;
 use hyperfile::wal::config::HyperFileWalConfig;
-use hyperfile::cache::config::HyperFileCacheConfig;
+use hyperfile::data_cache::config::HyperFileDataCacheConfig;
+use hyperfile::node_cache::config::HyperFileNodeCacheConfig;
 use hyperfile::config::{HyperFileMetaConfig, HyperFileRuntimeConfig};
 
 pub(crate) static BACKEND_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
@@ -26,7 +27,7 @@ pub(crate) struct HyperNbd<'a> {
 }
 
 impl<'a: 'static> HyperNbd<'a> {
-    pub(crate) fn open(uri: &str, wal_uri: &str, readonly: bool) -> Result<Self> {
+    pub(crate) fn open(uri: &str, wal_uri: &str, node_cache: &str, readonly: bool) -> Result<Self> {
         debug!("open back device: {}", uri);
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -48,13 +49,15 @@ impl<'a: 'static> HyperNbd<'a> {
             let staging_config = StagingConfig::new_s3_uri(uri, None);
             let runtime_config = HyperFileRuntimeConfig::default_large();
             let wal_config = HyperFileWalConfig::new(wal_uri);
-            let cache_config = HyperFileCacheConfig::new_local_disk_default();
+            let data_cache_config = HyperFileDataCacheConfig::new_local_disk_default();
+            let node_cache_config = HyperFileNodeCacheConfig::from_str(node_cache);
             let file_config = HyperFileConfigBuilder::new()
                                 .with_meta_config(&meta_config)
                                 .with_staging_config(&staging_config)
                                 .with_runtime_config(&runtime_config)
                                 .with_wal_config(&wal_config)
-                                .with_cache_config(&cache_config)
+                                .with_data_cache_config(&data_cache_config)
+                                .with_node_cache_config(&node_cache_config)
                                 .build();
             (HyperFileTokio::open_or_create_with_config(&client, file_config, flags, mode).await, client)
         });
