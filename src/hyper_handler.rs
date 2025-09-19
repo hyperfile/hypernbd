@@ -14,13 +14,12 @@ use hyperfile::staging::config::StagingConfig;
 use hyperfile::wal::config::HyperFileWalConfig;
 use hyperfile::data_cache::config::HyperFileDataCacheConfig;
 use hyperfile::node_cache::config::HyperFileNodeCacheConfig;
-use hyperfile::config::{HyperFileMetaConfig, HyperFileRuntimeConfig};
+use hyperfile::config::{HyperFileMetaConfig, HyperFileRuntimeConfig, HyperFileConfig};
 
 pub(crate) static BACKEND_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
 pub(crate) static BACKEND_HYPER: OnceLock<Mutex<Option<TaskHandler<FileContext<'_>>>>> = OnceLock::new();
 
 pub(crate) struct HyperNbd<'a> {
-    uri: String,
     rt: Arc<Runtime>,
     client: Client,
     spawner: LocalSpawner<FileContext<'a>, Hyper<'a>>,
@@ -28,12 +27,37 @@ pub(crate) struct HyperNbd<'a> {
 }
 
 impl<'a: 'static> HyperNbd<'a> {
+    pub(crate) fn open_from_config(config: &HyperFileConfig, readonly: bool) -> Result<Self> {
+        debug!("open from config");
+        Self::do_open(config, readonly)
+    }
+
     pub(crate) fn open(uri: &str, wal_uri: &str, node_cache: &str, readonly: bool) -> Result<Self> {
-        debug!("open back device: {}", uri);
+        debug!("open back device: {}, wal_uri: {}, node_cache: {}", uri, wal_uri, node_cache);
+        let meta_config = HyperFileMetaConfig::default();
+        let staging_config = StagingConfig::new_s3_uri(uri, None);
+        let runtime_config = HyperFileRuntimeConfig::default_large();
+        let wal_config = HyperFileWalConfig::new(wal_uri);
+        let data_cache_config = HyperFileDataCacheConfig::new_local_disk_default();
+        let node_cache_config = HyperFileNodeCacheConfig::from_str(node_cache);
+        let file_config = HyperFileConfigBuilder::new()
+                            .with_meta_config(&meta_config)
+                            .with_staging_config(&staging_config)
+                            .with_runtime_config(&runtime_config)
+                            .with_wal_config(&wal_config)
+                            .with_data_cache_config(&data_cache_config)
+                            .with_node_cache_config(&node_cache_config)
+                            .build();
+        Self::do_open(&file_config, readonly)
+    }
+
+    fn do_open(config: &HyperFileConfig, readonly: bool) -> Result<Self> {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
+
+        let file_config = config.clone();
 
         let res = rt.block_on(async move {
             let config = aws_config::load_from_env().await;
@@ -46,20 +70,6 @@ impl<'a: 'static> HyperNbd<'a> {
             };
             let mode = FileMode::default_file();
 
-            let meta_config = HyperFileMetaConfig::default();
-            let staging_config = StagingConfig::new_s3_uri(uri, None);
-            let runtime_config = HyperFileRuntimeConfig::default_large();
-            let wal_config = HyperFileWalConfig::new(wal_uri);
-            let data_cache_config = HyperFileDataCacheConfig::new_local_disk_default();
-            let node_cache_config = HyperFileNodeCacheConfig::from_str(node_cache);
-            let file_config = HyperFileConfigBuilder::new()
-                                .with_meta_config(&meta_config)
-                                .with_staging_config(&staging_config)
-                                .with_runtime_config(&runtime_config)
-                                .with_wal_config(&wal_config)
-                                .with_data_cache_config(&data_cache_config)
-                                .with_node_cache_config(&node_cache_config)
-                                .build();
             let spawner = LocalSpawner::new_current();
             let (tx, rx) = oneshot::channel();
             match Hyper::fs_open_or_create_with_config(&client, file_config, flags, mode).await {
@@ -90,7 +100,6 @@ impl<'a: 'static> HyperNbd<'a> {
         }
 
         Ok(Self {
-            uri: uri.to_owned(),
             rt,
             client,
             spawner,

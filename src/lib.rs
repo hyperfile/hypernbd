@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 use nbdkit::*;
 use nix::sys::socket::SockaddrStorage;
 use log::debug;
+use hyperfile::config::HyperFileConfig;
 
 #[cfg(feature="tokio-style")]
 mod hyper_tokio;
@@ -17,6 +18,7 @@ use hyper_handler::HyperNbd;
 static BACKEND_URI: OnceLock<String> = OnceLock::new();
 static BACKEND_WAL_URI: OnceLock<String> = OnceLock::new();
 static NODE_CACHE_CONFIG: OnceLock<String> = OnceLock::new();
+static HYPERFILE_CONFIG: OnceLock<HyperFileConfig> = OnceLock::new();
 static VERSION: LazyLock<String> = LazyLock::new(|| {
     format!("{}:{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
 });
@@ -34,6 +36,11 @@ impl<'a: 'static> Server for HyperNbd<'a> {
 
     fn open(readonly: bool) -> Result<Box<dyn Server>> {
         debug!("open - readonly: {}", readonly);
+        // try open nbd from hyperfile config if got from input
+        if let Some(config) = HYPERFILE_CONFIG.get() {
+            return Ok(Box::new(HyperNbd::open_from_config(config, readonly)?));
+        }
+
         let Some(uri) = BACKEND_URI.get() else {
             return Err(Error::new(libc::EINVAL, "failed to get backend uri"));
         };
@@ -143,6 +150,14 @@ impl<'a: 'static> Server for HyperNbd<'a> {
             let res = NODE_CACHE_CONFIG.set(value.to_string());
             if res.is_err() {
                 return Err(Error::new(libc::EINVAL, "failed to set node cache config string from command line input"));
+            }
+        }
+        if key == "config_file" {
+            let json = std::fs::read_to_string(value.to_string())?;
+            let config = HyperFileConfig::from_json_string(&json)?;
+            let res = HYPERFILE_CONFIG.set(config);
+            if res.is_err() {
+                return Err(Error::new(libc::EINVAL, "failed to set hyperfile config from command line input"));
             }
         }
         Ok(())
