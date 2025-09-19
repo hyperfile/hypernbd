@@ -152,6 +152,8 @@ impl<'a: 'static> HyperNbd<'a> {
         drop(handler);
         debug!("handler shutdown completed");
         Self::shutdown_runtime();
+        // finally shutdown server
+        nbdkit::shutdown();
     }
 
     pub(crate) fn get_volume_size(&self) -> Result<i64> {
