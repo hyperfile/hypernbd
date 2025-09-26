@@ -4,7 +4,7 @@ use log::debug;
 use tokio::sync::oneshot;
 use tokio::runtime::Runtime;
 use aws_sdk_s3::Client;
-use reactor::{TaskHandler, LocalSpawner};
+use hyperfile_reactor::{TaskHandler, LocalSpawner};
 use hyperfile::file::hyper::Hyper;
 use hyperfile::file::handler::FileContext;
 use hyperfile::file::flags::FileFlags;
