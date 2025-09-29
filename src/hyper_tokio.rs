@@ -21,6 +21,7 @@ pub(crate) static BACKEND_HYPER: OnceLock<Mutex<Option<Arc<RwLock<HyperFileTokio
 
 pub(crate) struct HyperNbd<'a> {
     rt: Arc<Runtime>,
+    #[allow(dead_code)]
     client: Client,
     file: Arc<RwLock<HyperFileTokio<'a>>>,
 }

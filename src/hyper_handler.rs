@@ -21,7 +21,9 @@ pub(crate) static BACKEND_HYPER: OnceLock<Mutex<Option<TaskHandler<FileContext<'
 
 pub(crate) struct HyperNbd<'a> {
     rt: Arc<Runtime>,
+    #[allow(dead_code)]
     client: Client,
+    #[allow(dead_code)]
     spawner: LocalSpawner<FileContext<'a>, Hyper<'a>>,
     handler: TaskHandler<FileContext<'a>>,
 }
