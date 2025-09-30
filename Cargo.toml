@@ -2,6 +2,13 @@
 name = "hypernbd"
 version = "0.1.0"
 edition = "2024"
+description = "Block device on S3 directly with NBD"
+authors = ["Dai Yiyang"]
+license = "Apache-2.0"
+categories = ["asynchronous", "filesystem", "data-structures"]
+keywords = ["block device", "object-storage", "s3"]
+homepage = "https://github.com/hyperfile/hypernbd"
+repository = "https://github.com/hyperfile/hypernbd"
 
 [dependencies]
 nbdkit = { version = "0.3.0", features = ["nix"] }
