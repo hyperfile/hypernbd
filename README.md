@@ -65,7 +65,7 @@ cargo build --release
 
 ## Plugin for nbdkit
 
-After successful build, you can find nbdkit plugin shared library `libhypernbd.so` in porject home drectory `target/release/`.
+After successful build, you can find nbdkit plugin shared library `libhypernbd.so` in project home drectory `target/release/`.
 
 ## How to run
 
