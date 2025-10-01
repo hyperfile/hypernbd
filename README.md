@@ -62,6 +62,7 @@ cargo run --release -- file set-len --size 10000000000000 s3://mybucket/root/of/
 | ---- | ---- |
 | backend_url | S3 url of backend hyperfile root in format like `s3://mybucket/root/of/backend/` |
 | backend_wal_url | S3 url of backend hyperfile root for WAL (Write Aread Log) in format like `s3://mybucket/root/of/wal/backend/`, set this parameter **ONLY** if you **REALLY** want to enable WAL |
+| node_cache_config | in format "TYPE,PATH,SIZE,STRATEGY"<br> for example "LocalDisk,/tmp/hypernbd/,16777216,Recreate" |
 
 ```
 # example of running in foreground and with rust log enabled at INFO level
