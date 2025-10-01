@@ -1,6 +1,6 @@
 [package]
 name = "hypernbd"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Block device on S3 directly with NBD"
 authors = ["Dai Yiyang"]
