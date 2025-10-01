@@ -101,3 +101,11 @@ aws s3 rm --recursive s3://mybucket/root/of/wal/backend/
 # in hypercli directory, do:
 cargo run --release -- file delete s3://mybucket/root/of/backend/
 ```
+
+## License
+
+This project is licensed under the Apache-2.0 License.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
