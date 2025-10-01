@@ -4,7 +4,38 @@ A block device built on top of [nbdkit](https://gitlab.com/nbdkit/nbdkit) with H
 
 ## Overview
 
-hypernbd project is a plugin for nbdkit, implement random read write block device over S3 directly.
+Hypernbd project is a plugin for nbdkit, implement random read write block device over S3 directly.
+
+## Why you need a block device directly on S3
+
+There is pretty a lot of use cases need adavanced features of block device.
+
+| Scenario | Feature |
+| ---- | ---- |
+| Temparary space for Spark shuffle | Virtually unlimited space |
+| Virtual disk image | Thin provisioning |
+| Continuous data protection | Continuous snapshot and point-in-time recovery |
+
+Technically, there is no way to use S3 native object as block deivce backend directly because S3 object is immutable and hard to support sparse format.
+
+But people like S3 for it's high durability, elasticity and of cause the low-cost of storage space.
+
+Hypernbd provide a random read write object format which makes it possible to running block device on S3 directly.
+
+## Features
+
+- Tunable block size
+- Storage space efficient by CoW (Copy-on-Write)
+- Continuous snapshot
+- Optional WAL (Write-Ahead-Log)
+
+## Limitations
+
+While you get benefits of running block device direct on S3, current approach have following limitations:
+
+- Extra storage space needed for metadata
+- IO amplify in both read and write path
+- Compaction process to prune/cleanup checkopoints
 
 ## Prerequisites
 
