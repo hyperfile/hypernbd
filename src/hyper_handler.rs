@@ -38,9 +38,9 @@ impl<'a: 'static> HyperNbd<'a> {
         debug!("open back device: {}, wal_uri: {}, node_cache: {}", uri, wal_uri, node_cache);
         let meta_config = HyperFileMetaConfig::default();
         let staging_config = StagingConfig::new_s3_uri(uri, None);
-        let runtime_config = HyperFileRuntimeConfig::default_large();
+        let runtime_config = HyperFileRuntimeConfig::default_middle();
         let wal_config = HyperFileWalConfig::new(wal_uri);
-        let data_cache_config = HyperFileDataCacheConfig::new_local_disk_default();
+        let data_cache_config = HyperFileDataCacheConfig::new_mem();
         let node_cache_config = HyperFileNodeCacheConfig::from_str(node_cache);
         let file_config = HyperFileConfigBuilder::new()
                             .with_meta_config(&meta_config)
