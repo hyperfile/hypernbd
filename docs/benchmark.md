@@ -2,6 +2,8 @@
 
 Demonstrate simple benchmark test of hypernbd on raw block device or on filesystem.
 
+All tests below running on a [c6i.4xlarge](https://aws.amazon.com/ec2/instance-types/c6i/).
+
 ## Fio
 
 ### Backend on S3 Standard, WAL disabled
