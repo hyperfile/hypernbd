@@ -133,6 +133,16 @@ aws s3 rm --recursive s3://mybucket/root/of/wal/backend/
 cargo run --release -- file delete s3://mybucket/root/of/backend/
 ```
 
+## Performance
+
+IO latency is the key differeniate between real block device and object storage.
+
+Block device normally provide sub-millisecond IO latency versus a few to tens of milliseconds latency of object storage.
+
+DO NOT expect the performance characteristics on hypernbd over a real block device espeically IOPS.
+
+See [benchmark](./docs/benchmark.md) for performance baseline of hypernbd.
+
 ## License
 
 This project is licensed under the Apache-2.0 License.
